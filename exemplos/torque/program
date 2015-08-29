@@ -1,0 +1,5 @@
+#!/bin/bash
+
+hostname=$(hostname)
+echo "Hi! I'm $hostname."
+

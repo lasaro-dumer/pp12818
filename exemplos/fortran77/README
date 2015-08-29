@@ -1,0 +1,6 @@
+1)Setar o ambiente usando o comando "mpiset"
+2)Compilar
+  mpif77 <arquivo.f> -o <arquivo de saida>
+3)Executar (com 16 processos)
+  mpirun -np 16 <arquivo de saida>
+
