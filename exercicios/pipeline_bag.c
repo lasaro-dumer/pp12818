@@ -20,7 +20,7 @@ main(int argc, char** argv)
     srand(time(NULL));
 
     for (i = 0; i < valC; i++) {
-        valores[i] = rand();
+        valores[i] = i * 100;
     }
 
     MPI_Status status; /* Status de retorno */
