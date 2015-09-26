@@ -98,7 +98,7 @@ main(int argc, char** argv){
         }
         //printf("[%f]@works sended; next=%d\n",curMilis(), next);
 
-	/*
+        /*
         if(next==0){
             printf("[%f]@master ordering...\n",curMilis());
             while(next<NUM_ARRAYS){
@@ -107,22 +107,22 @@ main(int argc, char** argv){
             }
             printf("[%f]@master done ordering. total=%d/%d...\n",curMilis(),next,NUM_ARRAYS);
         }
-	//*/
-      	while(slavesAlive > 0){
+        //*/
+        while(slavesAlive > 0){
         		MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);  // recebo por ordem de chegada com any_source
         		if(status.MPI_TAG == WORK_DONE){
-          			saco[dones]=toOrder;
-          			dones++;
+        			saco[dones]=toOrder;
+        			dones++;
         		}else if(status.MPI_TAG == GET_WORK){
     	        	if(next>=NUM_ARRAYS){
             				MPI_Send(toOrder, ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, SUICIDE, MPI_COMM_WORLD);
             				slavesAlive--;
-          			}else {
-                    MPI_Send(saco[next], ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, WORK, MPI_COMM_WORLD);
-                    next++;
-          			}
+                    }else {
+                        MPI_Send(saco[next], ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, WORK, MPI_COMM_WORLD);
+                        next++;
+                    }
         		}
-      	}
+        }
         printf("[%f]@master leaving...\n",curMilis());
 
         t2 = MPI_Wtime();        // contagem de tempo termina neste ponto
