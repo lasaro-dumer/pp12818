@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#define NUM_ARRAYS 1000
-#define ARRAYS_SIZE 10000
+#define NUM_ARRAYS 4000
+#define ARRAYS_SIZE 100000
 #define DEBUG 0
 
 int compare (const void * a, const void * b){
@@ -20,12 +20,11 @@ const double curMilis(){
 main(int argc, char** argv){
     int **saco;
     int i,j,next;
-    double t1, t2;
 
     srand(time(NULL));
     int r = rand();
 
-    t1 = curMilis();        // contagem de tempo inicia neste ponto
+    clock_t t1 = clock();        // contagem de tempo inicia neste ponto
     saco = (int **)malloc(NUM_ARRAYS * sizeof(int *));
     if(saco == NULL)
     {
@@ -65,12 +64,9 @@ main(int argc, char** argv){
         qsort (saco[next], ARRAYS_SIZE, sizeof(int), compare);
         next++;
     }
-    printf("[%f]@master done ordering. total=%d/%d...\n",curMilis(),next,NUM_ARRAYS);
 
-    printf("[%f]@master leaving...\n",curMilis());
+    clock_t t2 = clock();        // contagem de tempo termina neste ponto
 
-    t2 = curMilis();        // contagem de tempo termina neste ponto
-
-    printf("[%f]@MPI_Wtime measured work time to be: %1.2f\n",curMilis(), t2-t1);
+    printf("[%f]@measured work time to be: %f seconds\n",curMilis(), (double)(t2-t1)/CLOCKS_PER_SEC);
 
 }

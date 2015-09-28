@@ -9,8 +9,8 @@
 #define WORK 2
 #define SUICIDE 3
 #define WORK_INDEX 4
-#define NUM_ARRAYS 1000
-#define ARRAYS_SIZE 10000
+#define NUM_ARRAYS 4000
+#define ARRAYS_SIZE 100000
 #define DEBUG 0
 
 int compare (const void * a, const void * b){
@@ -84,7 +84,7 @@ main(int argc, char** argv){
                     }
                     for(j = 0; j< ARRAYS_SIZE; j++)
                     {
-                        saco[i][j] = valor;
+                        saco[i][j] = ARRAYS_SIZE - j;
                         if(DEBUG){
                             printf("%d,",saco[i][j]);
                         }
