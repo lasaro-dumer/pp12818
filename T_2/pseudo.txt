@@ -1,0 +1,16 @@
+//recebe do pai
+rec(pai) //guarda TAM
+//dividir ou conquistar?
+if TAM < Delta{
+    //conquista
+    sort
+    send(pai)
+}else{
+    //divide
+    send(filho esq) tam/2
+    send(filho dir) tam/2
+    rec(filho esq)
+    rec(filho dir)
+    intercala
+    send(pai)
+}
