@@ -6,11 +6,12 @@
 
 #define ARRAY_SIZE 100
 #define DEBUG 1
-void bs(int n, int * vetor){
+void bs(int n, int * vetor)
+{
     int c=0, d, troca, trocou =1;
 
     while (c < (n-1) & trocou )
-        {
+    {
         trocou = 0;
         for (d = 0 ; d < n - c - 1; d++)
             if (vetor[d] > vetor[d+1])
@@ -21,10 +22,11 @@ void bs(int n, int * vetor){
                 trocou = 1;
                 }
         c++;
-        }
+    }
 }
 
-int *interleaving(int array[], int len){
+int *interleaving(int array[], int len)
+{
 	int *array_aux;
 	int i1, i2, i_aux;
 
@@ -45,14 +47,16 @@ int *interleaving(int array[], int len){
 	return array_aux;
 }
 
-const double curMilis(){
+const double curMilis()
+{
 	struct timeval  tv;
 	gettimeofday(&tv, NULL);
 
 	return ((tv.tv_sec) * 1000 + (tv.tv_usec) / 1000.0) +0.5; // convert tv_sec & tv_usec to millisecond
 }
 
-main(int argc, char** argv){
+main(int argc, char** argv)
+{
 	int my_rank;  /* Identificador do processo */
 	int proc_n;   /* Número de processos */
 	int tam_vetor = 0;
@@ -71,12 +75,25 @@ main(int argc, char** argv){
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &proc_n);
-    int delta = ARRAY_SIZE/((proc_n+1)/2);
+    int delta = ceil(ARRAY_SIZE/((proc_n+1)/2));
 	int vetor[ARRAY_SIZE];
 
-    if ( my_rank != 0 ){
+    if ( my_rank != 0 )
+    {
         MPI_Recv(&vetor[0],ARRAY_SIZE,MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         MPI_Get_count(&status, MPI_INT, &tam_vetor);
+        #ifdef DEBUG
+        if (tam_vetor == 12)
+        {
+            int i;
+            printf("vetor={");
+            for (i=0 ; i<tam_vetor; i++)              /* init array with worst case for sorting */
+                printf("%d,",vetor[i] );
+            printf("}\n\n");
+        }
+        
+        //printf("[%f]@master[%d] Initial array len=%d, delta=%d\n",curMilis(),my_rank,tam_vetor,delta);
+        #endif
         pai = status.MPI_SOURCE;
     }
     else
@@ -109,24 +126,39 @@ main(int argc, char** argv){
     }
     else
     {
+        #ifdef DEBUG
+        if (tam_vetor == 25)
+        {
+            int i;
+            printf("vetor={");
+            for (i=0 ; i<tam_vetor; i++)              /* init array with worst case for sorting */
+                printf("%d,",vetor[i] );
+            printf("}\n\n");
+            float d = ((float)tam_vetor)/2;
+            printf("d=%f,ceil=%f\n",d,ceil(d) );
+        }        
+        //printf("[%f]@master[%d] Initial array len=%d, delta=%d\n",curMilis(),my_rank,tam_vetor,delta);
+        #endif
         //dividir e mandar para os filhos
-        //2 * my_rank + 1 e 2 * my_rank + 2
+        //2 * my_rank + 1 e 2 * my_rank + 2        
         MPI_Send(&vetor[0], tam_vetor/2, MPI_INT, 2 * my_rank + 1, 1, MPI_COMM_WORLD);
-        MPI_Send(&vetor[tam_vetor/2], tam_vetor/2, MPI_INT, 2 * my_rank + 2, 1, MPI_COMM_WORLD);
+        MPI_Send(&vetor[(int)ceil(((float)tam_vetor)/2)], tam_vetor/2, MPI_INT, 2 * my_rank + 2, 1, MPI_COMM_WORLD);
 
         //recebe dos filhos
         MPI_Recv(&vetor[0],tam_vetor,MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        MPI_Recv(&vetor[tam_vetor/2],tam_vetor,MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Recv(&vetor[(int)ceil(((float)tam_vetor)/2)],tam_vetor,MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
         // intercalo vetor inteiro
 
         vetor_aux = interleaving(vetor, tam_vetor);
-        if ( my_rank !=0 ){
+        if ( my_rank !=0 )
+        {
             MPI_Send(&vetor_aux[0],tam_vetor,MPI_INT, pai, 1, MPI_COMM_WORLD);
     		#ifdef DEBUG
     		printf("[%f]@slave[%d] leaving..., Array len=%d\n",curMilis(),my_rank,tam_vetor);
     		#endif
-        }else{
+        }else
+        {
     		#ifdef DEBUG
             int i;
             for (i=0 ; i<tam_vetor; i++){
@@ -136,7 +168,8 @@ main(int argc, char** argv){
         }
     }
     // mando para o pai
-    if ( my_rank ==0 ){
+    if ( my_rank ==0 )
+    {
         t_after = MPI_Wtime();
         //#ifdef DEBUG
         printf("[%f]@master[%d]:Time measured=%1.3fs ;Array len=%d\n",curMilis(),my_rank, t_after - t_before,tam_vetor);
