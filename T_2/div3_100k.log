@@ -1,0 +1,8 @@
+pp12818@atlantica15:~/repo/T_2$ ladrun -np 3 Sqsort_v2
+[1445364177366.319092]@master[0]:Time measured=10.810s ;Array len=100000, delta=25000
+pp12818@atlantica15:~/repo/T_2$ ladrun -np 7 Sqsort_v2
+[1445364254015.247070]@master[0]:Time measured=10.719s ;Array len=100000, delta=6250
+pp12818@atlantica15:~/repo/T_2$ ladrun -np 15 Sqsort_v2
+[1445364532243.514893]@master[0]:Time measured=10.705s ;Array len=100000, delta=1562
+pp12818@atlantica15:~/repo/T_2$ ladrun -np 31 Sqsort_v2
+[1445364745965.472900]@master[0]:Time measured=10.763s ;Array len=100000, delta=390
