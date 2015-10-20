@@ -193,8 +193,13 @@ main(int argc, char** argv)
         #endif
         #endif
         // intercalo vetor inteiro
-
-        //vetor_aux = interleaving(vetor, tam0);
+        #ifdef UNTIL_INT
+        if ( my_rank ==0 )
+        {
+            t_after = MPI_Wtime();
+            printf("[%f]@master[%d]:Time measured=%1.3fs ;Array len=%d\n",curMilis(),my_rank, t_after - t_before,tam_vetor);
+        }
+        #endif
         vetor_aux = interleaving(vetor, tam_vetor);
         if ( my_rank !=0 )
         {
