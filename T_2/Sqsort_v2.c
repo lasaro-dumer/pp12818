@@ -69,6 +69,15 @@ main(int argc, char** argv)
 	int tam_vetor = 0;
     int *vetor_aux;         /* ponteiro para o vetor resultantes que sera alocado dentro da rotina */
     int pai;
+    int fator = 1;//fator para o calculo do delta, corresponde a quantidade de nodos do penultimo nivel da arvore
+    if(proc_n==3)
+        fator = 1;
+    else if(proc_n==7)
+        fator = 2;
+    else if(proc_n==15)
+        fator = 4;
+    else if(proc_n==31)
+        fator = 8;
 
     //time measure
     double t_before, t_after;
@@ -82,7 +91,7 @@ main(int argc, char** argv)
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &proc_n);
-    int delta = ARRAY_SIZE/proc_n;
+    int delta = ARRAY_SIZE/(fator*(proc_n+1));
 	int vetor[ARRAY_SIZE];
 
     if ( my_rank != 0 )
@@ -139,9 +148,9 @@ main(int argc, char** argv)
     {
         //dividir e mandar para os filhos
         //2 * my_rank + 1 e 2 * my_rank + 2
-        int tam0 = tam_vetor/3;
-        int tam1 = tam_vetor/3;
-        int tam2 = tam_vetor/3;
+        int tam0 = tam_vetor/2;
+        int tam1 = tam_vetor/4;
+        int tam2 = tam_vetor/4;
         int filhoE = 2 * my_rank + 1;
         int filhoD = 2 * my_rank + 2;
         if (tam_vetor%3 != 0)
