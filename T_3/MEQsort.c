@@ -8,8 +8,7 @@
 #define WORK_DONE 1
 #define WORK 2
 #define SUICIDE 3
-#define WORK_INDEX 4
-#define NUM_ARRAYS 4000
+#define NUM_ARRAYS 10
 #define ARRAYS_SIZE 100000
 #define DEBUG 0
 
@@ -19,7 +18,6 @@ const char * printTag(int tag){
 	else if(tag==WORK_DONE){return "WORK_DONE";}
 	else if(tag==WORK){return "WORK";}
 	else if(tag==SUICIDE){return "SUICIDE";}
-	else if(tag==WORK_INDEX){return "WORK_INDEX";}
 	else{return "Invalid Tag";}
 }
 
@@ -46,6 +44,7 @@ main(int argc, char** argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &proc_n);
     int slavesAlive = proc_n-1;
+	int workDist[proc_n][1];
 
     if ( my_rank == 0 ){
         t1 = MPI_Wtime();        // contagem de tempo inicia neste ponto
@@ -80,26 +79,30 @@ main(int argc, char** argv){
                 MPI_Send(&next, 1, MPI_INT,s, SUICIDE, MPI_COMM_WORLD);
                 slavesAlive--;
             }else {
-                MPI_Send(&next,1,MPI_INT,s,WORK_INDEX,MPI_COMM_WORLD);//envia o indice do vetor para o escravo 's'
                 MPI_Send(saco[next], ARRAYS_SIZE, MPI_INT,s, WORK, MPI_COMM_WORLD);//envia o vetor para o escravo 's'
+				workDist[s][0]=next;
                 next++;
             }
         }
-        int orderedI = 0;
+		
+		#ifdef DEBUG
+		for(i = 0; i < proc_n; i++)
+        {
+			printf("workDist[%d]=%d\n",i,workDist[i][0]);
+        }
+		#endif
         while(slavesAlive > 0){//enquanto existirem escravos vivos, fica esperando mensagens
-    		MPI_Recv(&orderedI,1, MPI_INT,MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//recebe uma mensagem do escravo e abaixo verifica se é um indice de vetor
-    		if(status.MPI_TAG == WORK_INDEX){
-                MPI_Recv(ordered, ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, WORK_DONE, MPI_COMM_WORLD, &status);  //espera o vetor do mesmo escravo q enviou o indice
-                memcpy(saco[orderedI],ordered,ARRAYS_SIZE*sizeof(int));//coloca o vetor ordenado na matriz
-    			if(next>=NUM_ARRAYS){//se o numero de tarefas ja se esgotou, termina o escravo
-    				MPI_Send(&next, 1, MPI_INT,status.MPI_SOURCE, SUICIDE, MPI_COMM_WORLD);
-    				slavesAlive--;
-                }else {//se nao envia a proxima tarefa
-                    MPI_Send(&next,1,MPI_INT,status.MPI_SOURCE,WORK_INDEX,MPI_COMM_WORLD);//envia o indice do vetor para o escravo
-                    MPI_Send(saco[next], ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, WORK, MPI_COMM_WORLD);//envia o vetor para o escravo
-                    next++;
-                }
-    		}
+            MPI_Recv(ordered, ARRAYS_SIZE, MPI_INT,MPI_ANY_SOURCE, WORK_DONE, MPI_COMM_WORLD, &status);  //espera o vetor do mesmo escravo q enviou o indice
+            memcpy(saco[workDist[status.MPI_SOURCE][0]],ordered,ARRAYS_SIZE*sizeof(int));//coloca o vetor ordenado na matriz
+			if(next>=NUM_ARRAYS){//se o numero de tarefas ja se esgotou, termina o escravo
+				MPI_Send(&next, 1, MPI_INT,status.MPI_SOURCE, SUICIDE, MPI_COMM_WORLD);
+				slavesAlive--;
+            }else {//se nao envia a proxima tarefa
+                MPI_Send(saco[next], ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, WORK, MPI_COMM_WORLD);//envia o vetor para o escravo
+				workDist[status.MPI_SOURCE][0]=next;
+				printf("workDist[%d]=%d\n",status.MPI_SOURCE,workDist[status.MPI_SOURCE][0]);
+                next++;
+            }
         }
         printf("[%f]@master leaving...\n",curMilis());
         t2 = MPI_Wtime();        // contagem de tempo termina neste ponto
@@ -108,17 +111,11 @@ main(int argc, char** argv){
     else
     {
         int tag = WORK;
-        int toOrderI=0;
         do{
-            MPI_Recv(&toOrderI, 1, MPI_INT, 0, MPI_ANY_TAG,MPI_COMM_WORLD,&status);//recebe o comando do mestr
-            tag = status.MPI_TAG;
-            if(tag == WORK_INDEX){//se o comando recebido foi um indice...
-                MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//...fica esperando o vetor em seguida
-        		tag = status.MPI_TAG;
-            }
-    		if(tag == WORK){//recebeu um vetor para ordenar
+            MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//...fica esperando o vetor em seguida
+    		tag = status.MPI_TAG;
+            if(tag == WORK){//recebeu um vetor para ordenar
                 qsort (toOrder, ARRAYS_SIZE, sizeof(int), compare);//ordena o vetor
-                MPI_Send(&toOrderI,1, MPI_INT,0, WORK_INDEX, MPI_COMM_WORLD);//envia o indice do vetor para o mestre
                 MPI_Send(toOrder,ARRAYS_SIZE, MPI_INT,0, WORK_DONE, MPI_COMM_WORLD);//envia o vetor para o mestre
             }
         }while(tag != SUICIDE);//se a ultima tag foi a de suicidio, termina execução
