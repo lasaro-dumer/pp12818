@@ -8,9 +8,9 @@
 #define WORK_DONE 1
 #define WORK 2
 #define SUICIDE 3
-#define NUM_ARRAYS 10
-#define ARRAYS_SIZE 100000
-#define DEBUG 0
+#define NUM_ARRAYS 1000
+#define ARRAYS_SIZE 10000
+//#define DEBUG 0
 
 int compare (const void * a, const void * b){return ( *(int*)a - *(int*)b );}
 const char * printTag(int tag){
@@ -100,7 +100,9 @@ main(int argc, char** argv){
             }else {//se nao envia a proxima tarefa
                 MPI_Send(saco[next], ARRAYS_SIZE, MPI_INT,status.MPI_SOURCE, WORK, MPI_COMM_WORLD);//envia o vetor para o escravo
 				workDist[status.MPI_SOURCE][0]=next;
+				#ifdef DEBUG
 				printf("workDist[%d]=%d\n",status.MPI_SOURCE,workDist[status.MPI_SOURCE][0]);
+				#endif
                 next++;
             }
         }
@@ -115,8 +117,24 @@ main(int argc, char** argv){
             MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//...fica esperando o vetor em seguida
     		tag = status.MPI_TAG;
             if(tag == WORK){//recebeu um vetor para ordenar
-                qsort (toOrder, ARRAYS_SIZE, sizeof(int), compare);//ordena o vetor
-                MPI_Send(toOrder,ARRAYS_SIZE, MPI_INT,0, WORK_DONE, MPI_COMM_WORLD);//envia o vetor para o mestre
+                int th_id, nthreads;
+			   	// omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
+			   	#pragma omp parallel private(th_id, nthreads) num_threads(4)
+			   	{
+			 		th_id = omp_get_thread_num();
+			 		nthreads = omp_get_num_threads();
+			 		int ini = (th_id*(nthreads));
+			 		int end = (th_id*(nthreads))+(ARRAYS_SIZE/nthreads);
+			 		#ifdef DEBUG
+			 		printf("%d:[%d/%d]ini=%d, end=%d\n",my_rank, th_id, nthreads,ini,end);
+			 		for(j = ini; j< end; j++)
+                    {
+				 		printf("%d:[%d/%d]v[%d]=%d\n",my_rank, th_id, nthreads,j,toOrder[j]);
+                    }
+			 		#endif
+		 			qsort (&toOrder[ini], ini-end, sizeof(int), compare);//ordena o vetor                
+			   	}
+            	MPI_Send(toOrder,ARRAYS_SIZE, MPI_INT,0, WORK_DONE, MPI_COMM_WORLD);//envia o vetor para o mestre
             }
         }while(tag != SUICIDE);//se a ultima tag foi a de suicidio, termina execução
     }
