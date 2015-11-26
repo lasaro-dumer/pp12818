@@ -8,9 +8,51 @@
 #define WORK_DONE 1
 #define WORK 2
 #define SUICIDE 3
-#define NUM_ARRAYS 10000
-#define ARRAYS_SIZE 100000
+#define NUM_ARRAYS 10
+#define ARRAYS_SIZE 100
+#define FALSE 0
+#define TRUE 1
 //#define DEBUG 0
+void bs(int n, int * vetor)
+{
+    int c=0, d, troca, trocou =1;
+
+    while (c < (n-1) & trocou )
+    {
+        trocou = 0;
+        for (d = 0 ; d < n - c - 1; d++)
+            if (vetor[d] > vetor[d+1])
+                {
+                troca      = vetor[d];
+                vetor[d]   = vetor[d+1];
+                vetor[d+1] = troca;
+                trocou = 1;
+                }
+        c++;
+    }
+}
+
+int *interleaving(int array[], int len)
+{
+	int *array_aux;
+	int i1, i2, i_aux;
+
+	array_aux = (int *)malloc(sizeof(int) * len);
+
+	i1 = 0;
+	i2 = len / 2;
+
+	for (i_aux = 0; i_aux < len; i_aux++)
+	{
+		if (((array[i1] <= array[i2]) && (i1 < (len / 2)))
+				|| (i2 == len))
+			array_aux[i_aux] = array[i1++];
+		else
+			array_aux[i_aux] = array[i2++];
+	}
+
+	return array_aux;
+}
 
 int compare (const void * a, const void * b){return ( *(int*)a - *(int*)b );}
 const char * printTag(int tag){
@@ -38,6 +80,23 @@ main(int argc, char** argv){
 
     srand(time(NULL));
     int r = rand();
+
+    int qkSort = FALSE;
+    size_t optind;
+    for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++) {
+        switch (argv[optind][1]) {
+        case 'q': qkSort = TRUE; break;
+        //case 's': mode = WORD_MODE; break;
+        default:
+            fprintf(stderr, "Usage: %s [-q]\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // *argv points to the remaining non-option arguments.
+    // If *argv is NULL, there were no non-option arguments.
+
+    // ...
 
     MPI_Status status; /* Status de retorno */
     MPI_Init(&argc , & argv); // funcao que inicializa o MPI, todo o cÃ³digo paralelo esta abaixo
@@ -84,7 +143,7 @@ main(int argc, char** argv){
                 next++;
             }
         }
-		
+
 		#ifdef DEBUG
 		for(i = 0; i < proc_n; i++)
         {
@@ -118,22 +177,22 @@ main(int argc, char** argv){
     		tag = status.MPI_TAG;
             if(tag == WORK){//recebeu um vetor para ordenar
                 int th_id, nthreads;
-			   	// omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
-			   	#pragma omp parallel private(th_id, nthreads) num_threads(4)
-			   	{
-			 		th_id = omp_get_thread_num();
-			 		nthreads = omp_get_num_threads();
-			 		int ini = (th_id*(nthreads));
-			 		int end = (th_id*(nthreads))+(ARRAYS_SIZE/nthreads);
-			 		#ifdef DEBUG
-			 		printf("%d:[%d/%d]ini=%d, end=%d\n",my_rank, th_id, nthreads,ini,end);
-			 		for(j = ini; j< end; j++)
+                // omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
+                #pragma omp parallel private(th_id, nthreads) num_threads(4)
+                {
+                    th_id = omp_get_thread_num();
+                    nthreads = omp_get_num_threads();
+                    int ini = (th_id*(nthreads));
+                    int end = (th_id*(nthreads))+(ARRAYS_SIZE/nthreads);
+                    #ifdef DEBUG
+                    printf("%d:[%d/%d]ini=%d, end=%d\n",my_rank, th_id, nthreads,ini,end);
+                    for(j = ini; j< end; j++)
                     {
-				 		printf("%d:[%d/%d]v[%d]=%d\n",my_rank, th_id, nthreads,j,toOrder[j]);
+                        printf("%d:[%d/%d]v[%d]=%d\n",my_rank, th_id, nthreads,j,toOrder[j]);
                     }
-			 		#endif
-		 			qsort (&toOrder[ini], end-ini, sizeof(int), compare);//ordena o vetor                
-			   	}
+                    #endif
+                    qsort (&toOrder[ini], end-ini, sizeof(int), compare);//ordena o vetor
+                }
             	MPI_Send(toOrder,ARRAYS_SIZE, MPI_INT,0, WORK_DONE, MPI_COMM_WORLD);//envia o vetor para o mestre
             }
         }while(tag != SUICIDE);//se a ultima tag foi a de suicidio, termina execução
