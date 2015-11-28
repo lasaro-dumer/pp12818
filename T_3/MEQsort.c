@@ -8,11 +8,12 @@
 #define WORK_DONE 1
 #define WORK 2
 #define SUICIDE 3
-#define NUM_ARRAYS 10
-#define ARRAYS_SIZE 100
+#define NUM_ARRAYS 5
+#define ARRAYS_SIZE 20
 #define FALSE 0
 #define TRUE 1
 //#define DEBUG 0
+#define PRINTV 0
 void bs(int n, int * vetor)
 {
     int c=0, d, troca, trocou =1;
@@ -22,12 +23,12 @@ void bs(int n, int * vetor)
         trocou = 0;
         for (d = 0 ; d < n - c - 1; d++)
             if (vetor[d] > vetor[d+1])
-                {
+            {
                 troca      = vetor[d];
                 vetor[d]   = vetor[d+1];
                 vetor[d+1] = troca;
                 trocou = 1;
-                }
+            }
         c++;
     }
 }
@@ -153,7 +154,13 @@ main(int argc, char** argv){
         while(slavesAlive > 0){//enquanto existirem escravos vivos, fica esperando mensagens
             MPI_Recv(ordered, ARRAYS_SIZE, MPI_INT,MPI_ANY_SOURCE, WORK_DONE, MPI_COMM_WORLD, &status);  //espera o vetor do mesmo escravo q enviou o indice
             memcpy(saco[workDist[status.MPI_SOURCE][0]],ordered,ARRAYS_SIZE*sizeof(int));//coloca o vetor ordenado na matriz
-			if(next>=NUM_ARRAYS){//se o numero de tarefas ja se esgotou, termina o escravo
+            #ifdef PRINTV
+            printf("vetor={");
+            for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
+                printf("%d,",ordered[i] );
+            printf("}\n");
+            #endif
+    		if(next>=NUM_ARRAYS){//se o numero de tarefas ja se esgotou, termina o escravo
 				MPI_Send(&next, 1, MPI_INT,status.MPI_SOURCE, SUICIDE, MPI_COMM_WORLD);
 				slavesAlive--;
             }else {//se nao envia a proxima tarefa
@@ -176,23 +183,21 @@ main(int argc, char** argv){
             MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//...fica esperando o vetor em seguida
     		tag = status.MPI_TAG;
             if(tag == WORK){//recebeu um vetor para ordenar
-                int th_id, nthreads;
-                // omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
-                #pragma omp parallel private(th_id, nthreads) num_threads(4)
-                {
-                    th_id = omp_get_thread_num();
-                    nthreads = omp_get_num_threads();
-                    int ini = (th_id*(nthreads));
-                    int end = (th_id*(nthreads))+(ARRAYS_SIZE/nthreads);
-                    #ifdef DEBUG
-                    printf("%d:[%d/%d]ini=%d, end=%d\n",my_rank, th_id, nthreads,ini,end);
-                    for(j = ini; j< end; j++)
-                    {
-                        printf("%d:[%d/%d]v[%d]=%d\n",my_rank, th_id, nthreads,j,toOrder[j]);
+                omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
+                if(qkSort)
+                    qsort (toOrder, ARRAYS_SIZE, sizeof(int), compare);//ordena o vetor
+                else
+                    #pragma omp parallel for shared(i,j)
+                    for (i = 0; i < ARRAYS_SIZE; i++){
+                        for (j = i+1; j < ARRAYS_SIZE; j++){
+                            if (toOrder[i] > toOrder[j])
+                            {
+                                s      = toOrder[i];
+                                toOrder[i]   = toOrder[j];
+                                toOrder[j] = s;
+                            }
+                        }
                     }
-                    #endif
-                    qsort (&toOrder[ini], end-ini, sizeof(int), compare);//ordena o vetor
-                }
             	MPI_Send(toOrder,ARRAYS_SIZE, MPI_INT,0, WORK_DONE, MPI_COMM_WORLD);//envia o vetor para o mestre
             }
         }while(tag != SUICIDE);//se a ultima tag foi a de suicidio, termina execução
