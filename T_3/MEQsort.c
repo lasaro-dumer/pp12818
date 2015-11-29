@@ -33,26 +33,47 @@ void bs(int n, int * vetor)
     }
 }
 
-int *interleaving(int array[], int len)
+int *interleaving(int array[], int len, int numVectors)
 {
-    int *array_aux;
-    int i1, i2, i_aux;
+	int *array_aux;
+	int i1, i2, i_aux;
+    int i;
 
-    array_aux = (int *)malloc(sizeof(int) * len);
+	array_aux = (int *)malloc(sizeof(int) * len);
 
-    i1 = 0;
-    i2 = len / 2;
-
-    for (i_aux = 0; i_aux < len; i_aux++)
+    for (i = 0;i<(numVectors-1);i++)
     {
-        if (((array[i1] <= array[i2]) && (i1 < (len / 2)))
-        || (i2 == len))
-        array_aux[i_aux] = array[i1++];
-        else
-        array_aux[i_aux] = array[i2++];
+        i1 = i*(len/numVectors);
+        i2 = i1+(len/numVectors);
+        printf("i1 %d \n",i1);
+        printf("i2 %d \n",i2);
+        int len_aux = (i+1)*(len/numVectors);
+        printf("len_aux %d \n",len_aux);
+
+    	for (i_aux = i1; i_aux < len; i_aux++)
+    	{
+    		//if (((array[i1] <= array[i2]) && (i1 < (len / numVectors)))
+    		//		|| (i2 == len))
+            printf("i1 %d, i2 %d len_aux %d\n",i1,i2,len_aux);
+            if (array[i1] <= array[i2])
+            {
+                array_aux[i2] = array[i1];
+                printf("array_aux[%d] = %d \n",i_aux,array[i1]);
+            }
+    		else
+            {
+                array_aux[i1] = array[i2];
+                printf("array_aux[%d] = %d \n",i_aux,array[i2]);
+            }
+            i1++;
+            i2++;
+
+            if (i1 == len_aux)
+                break;
+    	}
     }
 
-    return array_aux;
+	return array_aux;
 }
 
 int compare (const void * a, const void * b){return ( *(int*)a - *(int*)b );}
@@ -83,11 +104,12 @@ main(int argc, char** argv){
     int r = rand();
 
     int qkSort = FALSE;
+    int parallel = TRUE;
     size_t optind;
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++) {
         switch (argv[optind][1]) {
             case 'q': qkSort = TRUE; break;
-            //case 's': mode = WORD_MODE; break;
+            case 's': parallel = FALSE; break;
             default:
             fprintf(stderr, "Usage: %s [-q]\n", argv[0]);
             exit(EXIT_FAILURE);
@@ -183,36 +205,60 @@ main(int argc, char** argv){
             MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//...fica esperando o vetor em seguida
             tag = status.MPI_TAG;
             if(tag == WORK){//recebeu um vetor para ordenar
-                omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
-                if(qkSort){
-                    //qsort (toOrder, ARRAYS_SIZE, sizeof(int), compare);//ordena o vetor
-                    int th_id, nthreads;
-                    // omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
-                    #pragma omp parallel private(th_id, nthreads) num_threads(4)
-                    {
-                        th_id = omp_get_thread_num();
-                        nthreads = omp_get_num_threads();
-                        int ini = (th_id*(nthreads));
-                        int end = (th_id*(nthreads))+(ARRAYS_SIZE/nthreads);
-                        #ifdef DEBUG
-                        printf("%d:[%d/%d]ini=%d, end=%d\n",my_rank, th_id, nthreads,ini,end);
-                        for(j = ini; j< end; j++)
-                        {
-                            printf("%d:[%d/%d]v[%d]=%d\n",my_rank, th_id, nthreads,j,toOrder[j]);
-                        }
+                if(parallel){
+                    omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
+                    if(qkSort){
+                        int th_id;
+                        int nthreads;
+
+                        #ifdef PRINTV
+                        printf("vetor={");
+                        for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
+                            printf("%d,",toOrder[i] );
+                        printf("}\n");
                         #endif
-                        qsort (&toOrder[ini], end-ini, sizeof(int), compare);//ordena o vetor
+
+                        #pragma omp parallel private(th_id, nthreads) num_threads(4)
+                        {
+                            th_id = omp_get_thread_num();
+                            nthreads = omp_get_num_threads();
+                            int ini = 0;
+                            int end = 0;
+
+                            ini = (th_id)*(ARRAYS_SIZE/nthreads);
+                            end = ini+(ARRAYS_SIZE/nthreads);
+
+                            qsort (&toOrder[ini], end, sizeof(int), compare);//ordena o vetor
+                        }
+                        interleaving(toOrder,ARRAYS_SIZE,4);
+                    }
+                    else{
+                        #pragma omp parallel for shared(i,j,s)
+                        for (i = ARRAYS_SIZE-1; i >=1 ; i--){
+                            for (j = 0; j < i; j++){
+                                if (toOrder[j] > toOrder[j+1])
+                                {
+                                    s = toOrder[j];
+                                    toOrder[j] = toOrder[j+1];
+                                    toOrder[j+1] = s;
+                                }
+                            }
+                        }
                     }
                 }
                 else{
-                    #pragma omp parallel for shared(i,j)
-                    for (i = ARRAYS_SIZE-1; i >=1 ; i--){
-                        for (j = 0; j < i; j++){
-                            if (toOrder[j] > toOrder[j+1])
-                            {
-                                s = toOrder[j];
-                                toOrder[j] = toOrder[j+1];
-                                toOrder[j+1] = s;
+                    if(qkSort){
+                        qsort (toOrder, ARRAYS_SIZE, sizeof(int), compare);//ordena o vetor
+                    }
+                    else{
+                        for (i = ARRAYS_SIZE-1; i >=1 ; i--){
+                            for (j = 0; j < i; j++){
+                                if (toOrder[j] > toOrder[j+1])
+                                {
+                                    s = toOrder[j];
+                                    toOrder[j] = toOrder[j+1];
+                                    toOrder[j+1] = s;
+                                }
                             }
                         }
                     }
