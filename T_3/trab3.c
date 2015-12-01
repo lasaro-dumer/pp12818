@@ -8,15 +8,13 @@
 #define WORK_DONE 1
 #define WORK 2
 #define SUICIDE 3
-#define NUM_ARRAYS 4
+#define NUM_ARRAYS 2
 #define ARRAYS_SIZE 20
 #define FALSE 0
 #define TRUE 1
-#define DEBUG 1
-#define PRINTV 0
-#define OPENMPTHREADNUMBER 4
+//#define DEBUG 1
+//#define PRINTV 0
 
-// BUBBLESORT
 void bs(int n, int * vetor)
 {
     int c=0, d, troca, trocou =1;
@@ -65,13 +63,14 @@ main(int argc, char** argv){
     srand(time(NULL));
     int r = rand();
 
-    int qkSort = TRUE;
+    int qkSort = FALSE;
+    int parallel = TRUE;
     size_t optind;
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++) {
         switch (argv[optind][1]) {
-        case 'q': qkSort = TRUE; break;
-        //case 's': mode = WORD_MODE; break;
-        default:
+            case 'q': qkSort = TRUE; break;
+            case 's': parallel = FALSE; break;
+            default:
             fprintf(stderr, "Usage: %s [-q]\n", argv[0]);
             exit(EXIT_FAILURE);
         }
@@ -166,144 +165,165 @@ main(int argc, char** argv){
             MPI_Recv(toOrder, ARRAYS_SIZE, MPI_INT,0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);//...fica esperando o vetor em seguida
             tag = status.MPI_TAG;
             if(tag == WORK){//recebeu um vetor para ordenar
-                omp_set_num_threads(OPENMPTHREADNUMBER); // disparar o número definido de threads
-                if(qkSort) // QUICKSORT
-                {
-                    int th_id;
-                    int nthreads;
-
-                    int vetor_auxiliar[(ARRAYS_SIZE/OPENMPTHREADNUMBER)];
-                    int toOrderCopy[ARRAYS_SIZE];
-
-                    for (i=0;i<=ARRAYS_SIZE;i++)
+                if(parallel){
+                    omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
+                    if(qkSort)
                     {
-                        toOrderCopy[i] = toOrder[i];
-                    }
+                        int th_id;
+                        int nthreads;
 
-                    #ifdef PRINTV
+                        int vetor_auxiliar[(ARRAYS_SIZE/4)];
+                        int toOrderCopy[ARRAYS_SIZE];
+
+                        for (i=0;i<=ARRAYS_SIZE;i++)
+                        {
+                            toOrderCopy[i] = toOrder[i];
+                        }
+
+                        #ifdef PRINTV
                         printf("vetor={");
                         for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
                             printf("%d,",toOrder[i] );
                         printf("}\n");
-                    #endif
-
-                    #pragma omp parallel private(th_id, nthreads, vetor_auxiliar) shared(toOrder)
-                    {
-                        th_id = omp_get_thread_num();
-                        nthreads = omp_get_num_threads();
-                        int ini = 0;
-                        int end = 0;
-
-                        ini = (th_id)*(ARRAYS_SIZE/nthreads);
-                        end = ini+(ARRAYS_SIZE/nthreads);
-
-                        for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
-                        {
-                            vetor_auxiliar[i] = toOrderCopy[ini+i];
-                        }
-
-                        #ifdef DEBUG
-                            printf("t[%d]:%d -> %d\n",th_id,ini,end );
                         #endif
-                        #ifdef PRINTV
+
+                        #pragma omp parallel private(th_id, nthreads, vetor_auxiliar) shared(toOrder)
+                        {
+                            th_id = omp_get_thread_num();
+                            nthreads = omp_get_num_threads();
+                            int ini = 0;
+                            int end = 0;
+
+                            ini = (th_id)*(ARRAYS_SIZE/nthreads);
+                            end = ini+(ARRAYS_SIZE/nthreads);
+
+                            for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
+                            {
+                                vetor_auxiliar[i] = toOrderCopy[ini+i];
+                            }
+
+                            //printf("t[%d]:%d -> %d\n",th_id,ini,end );
+                            #ifdef PRINTV
                             printf("vetor_AUXILIAR={");
                             for (i=0 ; i<(ARRAYS_SIZE/nthreads); i++)              /* init array with worst case for sorting */
                                 printf("%d,",vetor_auxiliar[i] );
                             printf("}\n");
-                        #endif
+                            #endif
 
-                        
-                        qsort (&vetor_auxiliar[0], (ARRAYS_SIZE/nthreads), sizeof(int), compare);//ordena o vetor
 
-                        #pragma omp critical
-                        {
-                            for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
+                            qsort (&vetor_auxiliar[0], (ARRAYS_SIZE/nthreads), sizeof(int), compare);//ordena o vetor
+
+                            #pragma omp critical
                             {
-                                ini = ARRAYS_SIZE-((th_id+1)*(ARRAYS_SIZE/nthreads));
-                                toOrder[ini+i] = vetor_auxiliar[i];
+                                for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
+                                {
+                                    ini = ARRAYS_SIZE-((th_id+1)*(ARRAYS_SIZE/nthreads));
+                                    toOrder[ini+i] = vetor_auxiliar[i];
+                                }
                             }
                         }
-                    }
 
-                    #ifdef PRINTV
+                        #ifdef PRINTV
                         printf("vetor AFTER={");
                         for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
                             printf("%d,",toOrder[i] );
                         printf("}\n");
-                    #endif
+                        #endif
+                        //interleaving(toOrder,ARRAYS_SIZE,4);
+                        //vetor_aux = interleavingNew(toOrder,ARRAYS_SIZE,4);
 
+                    }
+                    else // BUBBLESORT
+                    {
+                        int th_id;
+                        int nthreads;
+
+                        int vetor_auxiliar[(ARRAYS_SIZE/4)];
+                        int toOrderCopy[ARRAYS_SIZE];
+
+                        for (i=0;i<=ARRAYS_SIZE;i++)
+                        {
+                            toOrderCopy[i] = toOrder[i];
+                        }
+
+
+                        #ifdef PRINTV
+                        printf("vetor={");
+                        for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
+                            printf("%d,",toOrder[i] );
+                        printf("}\n");
+                        #endif
+
+                        #pragma omp parallel private(th_id, nthreads, vetor_auxiliar) shared(toOrder)
+                        {
+                            th_id = omp_get_thread_num();
+                            nthreads = omp_get_num_threads();
+                            int ini = 0;
+                            int end = 0;
+
+                            ini = (th_id)*(ARRAYS_SIZE/nthreads);
+                            end = ini+(ARRAYS_SIZE/nthreads);
+
+                            for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
+                            {
+                                vetor_auxiliar[i] = toOrderCopy[ini+i];
+                            }
+
+                            //#ifdef PRINTV
+                            //printf("vetor_AUXILIAR={");
+                            //for (i=0 ; i<(ARRAYS_SIZE/nthreads); i++)              /* init array with worst case for sorting */
+                            //    printf("%d,",vetor_auxiliar[i] );
+                            //printf("}\n");
+                            //#endif
+
+                            //printf("t[%d]:%d -> %d\n",th_id,ini,end );
+                            bs ((ARRAYS_SIZE/nthreads),&vetor_auxiliar[0]);//ordena o vetor
+
+                            //#ifdef PRINTV
+                            //printf("vetor_AUXILIAR DPS={");
+                            //for (i=0 ; i<(ARRAYS_SIZE/nthreads); i++)              /* init array with worst case for sorting */
+                            //    printf("%d,",vetor_auxiliar[i] );
+                            //printf("}\n");
+                            //#endif
+
+                            #pragma omp critical
+                            {
+                                for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
+                                {
+                                    ini = ARRAYS_SIZE-((th_id+1)*(ARRAYS_SIZE/nthreads));
+                                    toOrder[ini+i] = vetor_auxiliar[i];
+                                }
+                            }
+                        }
+
+                        #ifdef PRINTV
+                        printf("vetor AFTER={");
+                        for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
+                            printf("%d,",toOrder[i] );
+                        printf("}\n");
+                        #endif
+                        //interleaving(toOrder,ARRAYS_SIZE,4);
+                        //vetor_aux = interleavingNew(toOrder,ARRAYS_SIZE,4);
+                    }
                 }
-                else // BUBBLESORT
-                {
-                    int th_id;
-                    int nthreads;
-
-                    int vetor_auxiliar[(ARRAYS_SIZE/OPENMPTHREADNUMBER)];
-                    int toOrderCopy[ARRAYS_SIZE];
-
-                    for (i=0;i<=ARRAYS_SIZE;i++)
-                    {
-                        toOrderCopy[i] = toOrder[i];
+                else{
+                    if(qkSort){
+                        qsort (toOrder, ARRAYS_SIZE, sizeof(int), compare);//ordena o vetor
                     }
-
-
-                    #ifdef PRINTV
-                        printf("vetor={");
-                        for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
-                            printf("%d,",toOrder[i] );
-                        printf("}\n");
-                    #endif
-
-                    #pragma omp parallel private(th_id, nthreads, vetor_auxiliar) shared(toOrder)
-                    {
-                        th_id = omp_get_thread_num();
-                        nthreads = omp_get_num_threads();
-                        int ini = 0;
-                        int end = 0;
-
-                        ini = (th_id)*(ARRAYS_SIZE/nthreads);
-                        end = ini+(ARRAYS_SIZE/nthreads);
-
-                        for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
-                        {
-                            vetor_auxiliar[i] = toOrderCopy[ini+i];
-                        }
-
-                        #ifdef DEBUG
-                            printf("t[%d]:%d -> %d\n",th_id,ini,end );
-                        #endif
-                        #ifdef PRINTV
-                            printf("vetor_AUXILIAR={");
-                            for (i=0 ; i<(ARRAYS_SIZE/nthreads); i++)              /* init array with worst case for sorting */
-                                printf("%d,",vetor_auxiliar[i] );
-                            printf("}\n");
-                        #endif
-
-                        bs ((ARRAYS_SIZE/nthreads),&vetor_auxiliar[0]);//ordena o vetor
-
-                        #ifdef PRINTV
-                            printf("vetor_AUXILIAR DPS={");
-                            for (i=0 ; i<(ARRAYS_SIZE/nthreads); i++)              /* init array with worst case for sorting */
-                                printf("%d,",vetor_auxiliar[i] );
-                            printf("}\n");
-                        #endif
-
-                        #pragma omp critical
-                        {
-                            for (i=0;i<(ARRAYS_SIZE/nthreads);i++)
-                            {
-                                ini = ARRAYS_SIZE-((th_id+1)*(ARRAYS_SIZE/nthreads));
-                                toOrder[ini+i] = vetor_auxiliar[i];
+                    else{
+                        bs(ARRAYS_SIZE,toOrder);
+                        /*
+                        for (i = ARRAYS_SIZE-1; i >=1 ; i--){
+                            for (j = 0; j < i; j++){
+                                if (toOrder[j] > toOrder[j+1])
+                                {
+                                    s = toOrder[j];
+                                    toOrder[j] = toOrder[j+1];
+                                    toOrder[j+1] = s;
+                                }
                             }
-                        }
+                        }//*/
                     }
-
-                    #ifdef PRINTV
-                        printf("vetor AFTER={");
-                        for (i=0 ; i<ARRAYS_SIZE; i++)              /* init array with worst case for sorting */
-                            printf("%d,",toOrder[i] );
-                        printf("}\n");
-                    #endif
                 }
                 MPI_Send(toOrder,ARRAYS_SIZE, MPI_INT,0, WORK_DONE, MPI_COMM_WORLD);//envia o vetor para o mestre
             }
