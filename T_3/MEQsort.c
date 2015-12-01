@@ -12,9 +12,11 @@
 #define ARRAYS_SIZE 20
 #define FALSE 0
 #define TRUE 1
-//#define DEBUG 1
-//#define PRINTV 0
+#define DEBUG 1
+#define PRINTV 0
+#define OPENMPTHREADNUMBER 4
 
+// BUBBLESORT
 void bs(int n, int * vetor)
 {
     int c=0, d, troca, trocou =1;
@@ -166,13 +168,13 @@ main(int argc, char** argv){
             tag = status.MPI_TAG;
             if(tag == WORK){//recebeu um vetor para ordenar
                 if(parallel){
-                    omp_set_num_threads(4); // disparar 4 threads pois se trata de uma m�quina Quad-Core
+                    omp_set_num_threads(OPENMPTHREADNUMBER); // disparar 4 threads pois se trata de uma m�quina Quad-Core
                     if(qkSort)
                     {
                         int th_id;
                         int nthreads;
 
-                        int vetor_auxiliar[(ARRAYS_SIZE/4)];
+                        int vetor_auxiliar[(ARRAYS_SIZE/OPENMPTHREADNUMBER)];
                         int toOrderCopy[ARRAYS_SIZE];
 
                         for (i=0;i<=ARRAYS_SIZE;i++)
@@ -238,7 +240,7 @@ main(int argc, char** argv){
                         int th_id;
                         int nthreads;
 
-                        int vetor_auxiliar[(ARRAYS_SIZE/4)];
+                        int vetor_auxiliar[(ARRAYS_SIZE/OPENMPTHREADNUMBER)];
                         int toOrderCopy[ARRAYS_SIZE];
 
                         for (i=0;i<=ARRAYS_SIZE;i++)
